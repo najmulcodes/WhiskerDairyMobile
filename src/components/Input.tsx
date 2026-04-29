@@ -7,6 +7,7 @@ import {
   TextInputProps,
   TouchableOpacity,
   ViewStyle,
+  TextStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radius, FontSize } from '../theme/colors';
@@ -17,6 +18,8 @@ interface InputProps extends TextInputProps {
   hint?: string;
   containerStyle?: ViewStyle;
   isPassword?: boolean;
+  /** Applied to the TextInput element (merged with base styles) */
+  style?: TextStyle;
 }
 
 export function Input({
@@ -25,6 +28,7 @@ export function Input({
   hint,
   containerStyle,
   isPassword = false,
+  style,
   ...props
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
@@ -32,7 +36,7 @@ export function Input({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label ? <Text style={styles.label}>{label}</Text> : null}
       <View
         style={[
           styles.inputWrapper,
@@ -41,14 +45,14 @@ export function Input({
         ]}
       >
         <TextInput
-          style={styles.input}
+          style={[styles.input, style]}
           placeholderTextColor={Colors.textMuted}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={isPassword && !showPassword}
           {...props}
         />
-        {isPassword && (
+        {isPassword ? (
           <TouchableOpacity
             onPress={() => setShowPassword((v) => !v)}
             style={styles.eyeButton}
@@ -60,18 +64,16 @@ export function Input({
               color={Colors.textMuted}
             />
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
-      {hint && !error && <Text style={styles.hintText}>{hint}</Text>}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {hint && !error ? <Text style={styles.hintText}>{hint}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 6,
-  },
+  container: { gap: 6 },
   label: {
     fontSize: FontSize.xs,
     fontWeight: '600',
@@ -93,24 +95,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: Colors.white,
   },
-  inputError: {
-    borderColor: Colors.error,
-  },
+  inputError: { borderColor: Colors.error },
   input: {
     flex: 1,
     fontSize: FontSize.base,
     color: Colors.textPrimary,
     paddingVertical: 12,
   },
-  eyeButton: {
-    padding: 4,
-  },
-  errorText: {
-    fontSize: FontSize.sm,
-    color: Colors.error,
-  },
-  hintText: {
-    fontSize: FontSize.sm,
-    color: Colors.textMuted,
-  },
+  eyeButton: { padding: 4 },
+  errorText: { fontSize: FontSize.sm, color: Colors.error },
+  hintText: { fontSize: FontSize.sm, color: Colors.textMuted },
 });
