@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
@@ -28,9 +29,7 @@ const CATEGORIES = [
 
 function getTodayString(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate()
-  ).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export function AddExpenseScreen() {
@@ -68,10 +67,7 @@ export function AddExpenseScreen() {
       {
         onSuccess: () => navigation.goBack(),
         onError: (e) =>
-          Alert.alert(
-            'Error',
-            e instanceof Error ? e.message : 'Failed to log expense'
-          ),
+          Alert.alert('Error', e instanceof Error ? e.message : 'Failed to log expense'),
       }
     );
   }
@@ -99,6 +95,7 @@ export function AddExpenseScreen() {
               keyboardType="decimal-pad"
               error={errors.amount}
               style={styles.amountInput}
+              containerStyle={styles.amountInputContainer}
             />
           </View>
         </View>
@@ -198,13 +195,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    width: '100%',
   },
   currencySymbol: {
     fontSize: 36,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
+  amountInputContainer: { flex: 1 },
   amountInput: {
     fontSize: 36,
     fontWeight: '800',

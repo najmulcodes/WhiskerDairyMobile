@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild --clean",
+    "postprebuild": "node scripts/fix-gradle-wrapper.js",
     "build:android:apk": "eas build --platform android --profile preview",
     "build:android:aab": "eas build --platform android --profile production",
     "build:ios": "eas build --platform ios --profile production",

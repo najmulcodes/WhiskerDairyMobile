@@ -80,11 +80,9 @@ export function PetFormScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      // Use the string literal 'images' — works on both 15.0.7 and 15.1.0
-      // without triggering the deprecated MediaTypeOptions enum
-      mediaTypes: 'images' as ImagePicker.MediaTypeOptions,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [1, 1] as [number, number],
+      aspect: [1, 1],
       quality: 0.8,
     });
 
@@ -102,7 +100,7 @@ export function PetFormScreen() {
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: [1, 1] as [number, number],
+      aspect: [1, 1],
       quality: 0.8,
     });
 
