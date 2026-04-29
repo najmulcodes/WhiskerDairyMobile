@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import { useAuth } from '../context/AuthContext';
 import { Colors } from '../theme/colors';
 import { RootStackParamList } from './types';
@@ -26,27 +27,22 @@ export function AppNavigator() {
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: {
-            backgroundColor: Colors.surface,
-          },
+          headerStyle: { backgroundColor: Colors.surface },
           headerTintColor: Colors.textPrimary,
-          headerTitleStyle: {
-            fontWeight: '700',
-            fontSize: 17,
-          },
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
           headerShadowVisible: false,
-          contentStyle: {
-            backgroundColor: Colors.background,
-          },
+          contentStyle: { backgroundColor: Colors.background },
         }}
       >
         {!user ? (
+          // ── Unauthenticated stack ──────────────────────────────
           <Stack.Screen
-            name="MainTabs"
+            name="Auth"
             component={AuthScreen}
             options={{ headerShown: false }}
           />
         ) : (
+          // ── Authenticated stack ───────────────────────────────
           <>
             <Stack.Screen
               name="MainTabs"
@@ -57,7 +53,7 @@ export function AppNavigator() {
               name="PetDetail"
               component={PetDetailScreen}
               options={({ route }) => ({
-                title: route.params?.name || 'Pet Profile',
+                title: route.params?.name ?? 'Pet Profile',
                 headerBackTitle: 'Back',
               })}
             />
@@ -65,8 +61,7 @@ export function AppNavigator() {
               name="PetForm"
               component={PetFormScreen}
               options={({ route }) => ({
-                title:
-                  route.params.mode === 'add' ? 'Add Pet' : 'Edit Pet',
+                title: route.params.mode === 'add' ? 'Add Pet' : 'Edit Pet',
                 headerBackTitle: 'Back',
                 presentation: 'modal',
               })}
@@ -83,10 +78,7 @@ export function AppNavigator() {
             <Stack.Screen
               name="Reminders"
               component={RemindersScreen}
-              options={{
-                title: 'Reminders',
-                headerBackTitle: 'Back',
-              }}
+              options={{ title: 'Reminders', headerBackTitle: 'Back' }}
             />
           </>
         )}

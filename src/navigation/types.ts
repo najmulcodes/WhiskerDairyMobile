@@ -1,8 +1,7 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
-
-export type AuthStackParamList = {
-  Auth: undefined;
-};
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export type TabParamList = {
   Dashboard: undefined;
@@ -12,24 +11,21 @@ export type TabParamList = {
   Settings: undefined;
 };
 
-export type PetsStackParamList = {
-  PetsList: undefined;
-  PetDetail: { id: string; name?: string };
-  PetForm: { mode: 'add' } | { mode: 'edit'; id: string };
-};
-
-export type ExpensesStackParamList = {
-  ExpensesList: undefined;
-  AddExpense: undefined;
-};
-
 export type RootStackParamList = {
+  Auth: undefined;
   MainTabs: NavigatorScreenParams<TabParamList>;
   PetDetail: { id: string; name?: string };
   PetForm: { mode: 'add' } | { mode: 'edit'; id: string };
   AddExpense: undefined;
   Reminders: undefined;
 };
+
+/** Use this on screens that live inside a tab AND need to push stack screens */
+export type TabScreenNavProp<RouteName extends keyof TabParamList> =
+  CompositeNavigationProp<
+    BottomTabNavigationProp<TabParamList, RouteName>,
+    NativeStackNavigationProp<RootStackParamList>
+  >;
 
 declare global {
   namespace ReactNavigation {
