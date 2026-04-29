@@ -9,12 +9,16 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 
-import { usePet, useCreatePet, useUpdatePet, CreatePetInput } from '../../hooks/usePets';
+import {
+  usePet,
+  useCreatePet,
+  useUpdatePet,
+  CreatePetInput,
+} from '../../hooks/usePets';
 import { uploadImageToCloudinary } from '../../lib/cloudinary';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
@@ -29,7 +33,7 @@ const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
   { value: 'unknown', label: 'Unknown' },
-];
+] as const;
 
 export function PetFormScreen() {
   const navigation = useNavigation();
@@ -52,21 +56,21 @@ export function PetFormScreen() {
   const [uploading, setUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Fill form when editing
   useEffect(() => {
     if (existingPet && isEdit) {
-      setName(existingPet.name || '');
-      setDob(existingPet.dob || '');
-      setBreed(existingPet.breed || '');
-      setColor(existingPet.color || '');
-      setGender((existingPet.gender as typeof gender) || '');
-      setNotes(existingPet.notes || '');
-      setImageUrl(existingPet.image || null);
+      setName(existingPet.name ?? '');
+      setDob(existingPet.dob ?? '');
+      setBreed(existingPet.breed ?? '');
+      setColor(existingPet.color ?? '');
+      setGender((existingPet.gender as typeof gender) ?? '');
+      setNotes(existingPet.notes ?? '');
+      setImageUrl(existingPet.image ?? null);
     }
   }, [existingPet, isEdit]);
 
   async function pickImage() {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
         'Permission needed',
@@ -117,7 +121,7 @@ export function PetFormScreen() {
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = 'Pet name is required';
     if (dob && !/^\d{4}-\d{2}-\d{2}$/.test(dob))
-      newErrors.dob = 'Date format: YYYY-MM-DD';
+      newErrors.dob = 'Date format must be YYYY-MM-DD';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -159,22 +163,30 @@ export function PetFormScreen() {
         {
           onSuccess: () => navigation.goBack(),
           onError: (e) =>
-            Alert.alert('Error', e instanceof Error ? e.message : 'Failed to update pet'),
+            Alert.alert(
+              'Error',
+              e instanceof Error ? e.message : 'Failed to update pet'
+            ),
         }
       );
     } else {
       createPet.mutate(input, {
         onSuccess: () => navigation.goBack(),
         onError: (e) =>
-          Alert.alert('Error', e instanceof Error ? e.message : 'Failed to create pet'),
+          Alert.alert(
+            'Error',
+            e instanceof Error ? e.message : 'Failed to create pet'
+          ),
       });
     }
   }
 
-  if (isEdit && petLoading) return <Loader fullScreen message="Loading pet..." />;
+  if (isEdit && petLoading) {
+    return <Loader fullScreen message="Loading pet..." />;
+  }
 
   const isBusy = uploading || createPet.isPending || updatePet.isPending;
-  const avatarSrc = imageUri || imageUrl || null;
+  const avatarSrc = imageUri ?? imageUrl ?? null;
 
   return (
     <KeyboardAvoidingView
@@ -257,11 +269,7 @@ export function PetFormScreen() {
                     gender === opt.value && styles.genderBtnActive,
                   ]}
                   onPress={() =>
-                    setGender(
-                      gender === opt.value
-                        ? ''
-                        : (opt.value as typeof gender)
-                    )
+                    setGender(gender === opt.value ? '' : opt.value)
                   }
                 >
                   <Text
@@ -277,18 +285,17 @@ export function PetFormScreen() {
             </View>
           </View>
 
+          {/* Notes */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Notes</Text>
-            <View style={styles.textareaWrapper}>
-              <Input
-                placeholder="Add anything useful for future reference…"
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={4}
-                style={styles.textarea}
-              />
-            </View>
+            <Input
+              placeholder="Add anything useful for future reference…"
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={4}
+              style={styles.textareaInput}
+            />
           </View>
         </View>
       </ScrollView>
@@ -297,7 +304,11 @@ export function PetFormScreen() {
         <Button variant="secondary" onPress={() => navigation.goBack()}>
           Cancel
         </Button>
-        <Button onPress={handleSubmit} loading={isBusy} style={styles.submitBtn}>
+        <Button
+          onPress={handleSubmit}
+          loading={isBusy}
+          style={styles.submitBtn}
+        >
           {isEdit ? 'Save changes' : 'Create pet'}
         </Button>
       </View>
@@ -324,7 +335,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colors.white,
   },
-  imageHint: { fontSize: FontSize.sm, color: Colors.textMuted, fontWeight: '500' },
+  imageHint: {
+    fontSize: FontSize.sm,
+    color: Colors.textMuted,
+    fontWeight: '500',
+  },
   fields: { gap: 14 },
   fieldGroup: { gap: 6 },
   fieldLabel: {
@@ -354,8 +369,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   genderBtnTextActive: { color: Colors.primary },
-  textareaWrapper: {},
-  textarea: { minHeight: 100 },
+  textareaInput: { minHeight: 100, textAlignVertical: 'top' },
   footer: {
     flexDirection: 'row',
     gap: 12,

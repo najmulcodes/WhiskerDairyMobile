@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
 
 import { usePets, useDeletePet, Pet, calcAge } from '../../hooks/usePets';
 import { Avatar } from '../../components/Avatar';
@@ -20,9 +20,9 @@ import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
 import { Colors, FontSize, Radius, Spacing } from '../../theme/colors';
-import { RootStackParamList } from '../../navigation/types';
+import { TabScreenNavProp } from '../../navigation/types';
 
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type NavProp = TabScreenNavProp<'Pets'>;
 
 function PetCard({ pet, onView, onEdit, onDelete }: {
   pet: Pet;

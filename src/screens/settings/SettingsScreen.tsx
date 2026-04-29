@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 
 import {
   useAuth,
@@ -97,7 +96,6 @@ export function SettingsScreen() {
   const { user, signOut } = useAuth();
   const displayName = getUserDisplayName(user);
   const avatarUrl = getUserAvatarUrl(user);
-  const navigation = useNavigation();
 
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(displayName);

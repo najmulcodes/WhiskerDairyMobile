@@ -11,7 +11,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAuth, getUserDisplayName } from '../../context/AuthContext';
 import { usePets, calcAge } from '../../hooks/usePets';
@@ -20,11 +19,11 @@ import { useHealthSummary } from '../../hooks/useHealthSummary';
 import { Card } from '../../components/Card';
 import { Avatar } from '../../components/Avatar';
 import { Loader } from '../../components/Loader';
-import { Badge } from '../../components/Badge';
 import { Colors, FontSize, Radius, Spacing } from '../../theme/colors';
-import { RootStackParamList } from '../../navigation/types';
+import { TabScreenNavProp } from '../../navigation/types';
 
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+// Dashboard lives in the tab navigator, but can also push root-stack screens.
+type NavProp = TabScreenNavProp<'Dashboard'>;
 
 function StatCard({
   label,
@@ -50,8 +49,16 @@ export function DashboardScreen() {
   const displayName = getUserDisplayName(user);
 
   const currentMonth = getMonthString(new Date());
-  const { data: pets, isLoading: petsLoading, refetch: refetchPets } = usePets();
-  const { data: expenses, isLoading: expensesLoading, refetch: refetchExpenses } = useExpenses(currentMonth);
+  const {
+    data: pets,
+    isLoading: petsLoading,
+    refetch: refetchPets,
+  } = usePets();
+  const {
+    data: expenses,
+    isLoading: expensesLoading,
+    refetch: refetchExpenses,
+  } = useExpenses(currentMonth);
   const { data: healthSummary } = useHealthSummary();
 
   const isLoading = petsLoading || expensesLoading;
@@ -61,7 +68,8 @@ export function DashboardScreen() {
     refetchExpenses();
   }
 
-  const total = expenses?.reduce((sum, e) => sum + Number(e.amount_bdt), 0) ?? 0;
+  const total =
+    expenses?.reduce((sum, e) => sum + Number(e.amount_bdt), 0) ?? 0;
   const recentExpenses = expenses?.slice(0, 5) ?? [];
 
   return (
@@ -86,7 +94,7 @@ export function DashboardScreen() {
           style={styles.hero}
         >
           <View style={styles.heroTop}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.heroLabel}>Dashboard</Text>
               <Text style={styles.heroName}>Hi, {displayName} 👋</Text>
               <Text style={styles.heroSub}>
@@ -102,7 +110,6 @@ export function DashboardScreen() {
             />
           </View>
 
-          {/* Health alerts banner */}
           {healthSummary && healthSummary.totalAlerts > 0 && (
             <TouchableOpacity
               style={styles.alertBanner}
@@ -114,7 +121,11 @@ export function DashboardScreen() {
                 {healthSummary.totalAlerts} health alert
                 {healthSummary.totalAlerts > 1 ? 's' : ''} need attention
               </Text>
-              <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.7)" />
+              <Ionicons
+                name="chevron-forward"
+                size={14}
+                color="rgba(255,255,255,0.7)"
+              />
             </TouchableOpacity>
           )}
         </LinearGradient>
@@ -146,7 +157,8 @@ export function DashboardScreen() {
               {
                 icon: 'paw',
                 label: 'Add pet',
-                onPress: () => navigation.navigate('PetForm', { mode: 'add' }),
+                onPress: () =>
+                  navigation.navigate('PetForm', { mode: 'add' }),
               },
               {
                 icon: 'wallet',
@@ -167,7 +179,11 @@ export function DashboardScreen() {
               >
                 <View style={styles.quickActionIcon}>
                   <Ionicons
-                    name={action.icon as React.ComponentProps<typeof Ionicons>['name']}
+                    name={
+                      action.icon as React.ComponentProps<
+                        typeof Ionicons
+                      >['name']
+                    }
                     size={22}
                     color={Colors.primary}
                   />
@@ -182,11 +198,8 @@ export function DashboardScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Your pets</Text>
-            <TouchableOpacity
-              onPress={() =>
-                navigation.getParent()?.navigate('Pets')
-              }
-            >
+            {/* Navigate to the Pets tab directly — correct for CompositeNavProp */}
+            <TouchableOpacity onPress={() => navigation.navigate('Pets')}>
               <Text style={styles.seeAll}>View all</Text>
             </TouchableOpacity>
           </View>
@@ -201,7 +214,9 @@ export function DashboardScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.emptyBtn}
-                onPress={() => navigation.navigate('PetForm', { mode: 'add' })}
+                onPress={() =>
+                  navigation.navigate('PetForm', { mode: 'add' })
+                }
                 activeOpacity={0.8}
               >
                 <Text style={styles.emptyBtnText}>Add pet</Text>
@@ -273,7 +288,8 @@ export function DashboardScreen() {
                   key={expense.id}
                   style={[
                     styles.expenseRow,
-                    index < recentExpenses.length - 1 && styles.expenseDivider,
+                    index < recentExpenses.length - 1 &&
+                      styles.expenseDivider,
                   ]}
                 >
                   <View style={styles.expenseLeft}>
@@ -281,7 +297,8 @@ export function DashboardScreen() {
                       {expense.description || 'Untitled expense'}
                     </Text>
                     <Text style={styles.expenseMeta}>
-                      {expense.category?.name || 'Uncategorized'} · {expense.date}
+                      {expense.category?.name || 'Uncategorized'} ·{' '}
+                      {expense.date}
                     </Text>
                   </View>
                   <Text style={styles.expenseAmount}>
@@ -298,16 +315,9 @@ export function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: 32,
-  },
+  safe: { flex: 1, backgroundColor: Colors.background },
+  scroll: { flex: 1 },
+  content: { paddingBottom: 32 },
   hero: {
     paddingTop: Spacing.xl,
     paddingHorizontal: Spacing.xl,
@@ -339,10 +349,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
   },
-  avatar: {
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
+  avatar: { borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
   alertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -364,11 +371,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.xl,
   },
-  statCard: {
-    flex: 1,
-    padding: 12,
-    gap: 4,
-  },
+  statCard: { flex: 1, padding: 12, gap: 4 },
   statLabel: {
     fontSize: FontSize.xs,
     fontWeight: '700',
@@ -381,10 +384,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.textPrimary,
   },
-  statSub: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-  },
+  statSub: { fontSize: 10, color: Colors.textSecondary },
   section: {
     paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.xxl,
@@ -405,10 +405,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primary,
   },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  quickActions: { flexDirection: 'row', gap: 10 },
   quickAction: {
     flex: 1,
     backgroundColor: Colors.white,
@@ -433,11 +430,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: 'center',
   },
-  emptyCard: {
-    alignItems: 'center',
-    padding: 24,
-    gap: 8,
-  },
+  emptyCard: { alignItems: 'center', padding: 24, gap: 8 },
   emptyTitle: {
     fontSize: FontSize.md,
     fontWeight: '700',
@@ -475,9 +468,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  petInfo: {
-    flex: 1,
-  },
+  petInfo: { flex: 1 },
   petName: {
     fontSize: FontSize.base,
     fontWeight: '700',
@@ -500,19 +491,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  expenseLeft: {
-    flex: 1,
-    gap: 2,
-  },
+  expenseLeft: { flex: 1, gap: 2 },
   expenseDesc: {
     fontSize: FontSize.sm,
     fontWeight: '600',
     color: Colors.textPrimary,
   },
-  expenseMeta: {
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-  },
+  expenseMeta: { fontSize: FontSize.xs, color: Colors.textSecondary },
   expenseAmount: {
     fontSize: FontSize.sm,
     fontWeight: '700',

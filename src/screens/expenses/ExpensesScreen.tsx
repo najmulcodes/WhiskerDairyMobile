@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import {
   useExpenses,
@@ -26,9 +25,9 @@ import { Card } from '../../components/Card';
 import { EmptyState } from '../../components/EmptyState';
 import { Loader } from '../../components/Loader';
 import { Colors, FontSize, Radius, Spacing } from '../../theme/colors';
-import { RootStackParamList } from '../../navigation/types';
+import { TabScreenNavProp } from '../../navigation/types';
 
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type NavProp = TabScreenNavProp<'Expenses'>;
 
 const CATEGORY_COLORS: Record<string, string> = {
   Food: '#ff7a5c',
