@@ -7,7 +7,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
 import { setAccessToken } from '../lib/api';
 
 interface AuthContextValue {
@@ -25,7 +25,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setSession(null);
+      setUser(null);
+      setAccessToken(null);
+      setLoading(false);
+      return;
+    }
+
     let mounted = true;
+    const supabase = getSupabaseClient();
 
     // Get initial session
     supabase.auth
@@ -38,7 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAccessToken(s?.access_token ?? null);
       })
       .catch(() => {
-        // ignore
+        if (!mounted) return;
+        setSession(null);
+        setUser(null);
+        setAccessToken(null);
       })
       .finally(() => {
         if (mounted) setLoading(false);
@@ -62,6 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      setSession(null);
+      setUser(null);
+      setAccessToken(null);
+      return;
+    }
+
+    const supabase = getSupabaseClient();
     await supabase.auth.signOut();
     setAccessToken(null);
   }, []);

@@ -18,11 +18,16 @@ import {
   getUserDisplayName,
   getUserAvatarUrl,
 } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  SUPABASE_CONFIG_ERROR,
+} from '../../lib/supabase';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Card } from '../../components/Card';
+import { EmptyState } from '../../components/EmptyState';
 import { Colors, FontSize, Radius, Spacing } from '../../theme/colors';
 
 type SectionProps = {
@@ -93,6 +98,19 @@ function Row({ icon, label, value, onPress, destructive, rightElement, isLast }:
 }
 
 export function SettingsScreen() {
+  if (!isSupabaseConfigured) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <EmptyState
+          icon="settings-outline"
+          title="App configuration required"
+          message={SUPABASE_CONFIG_ERROR ?? 'Supabase is not configured.'}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const supabase = getSupabaseClient();
   const { user, signOut } = useAuth();
   const displayName = getUserDisplayName(user);
   const avatarUrl = getUserAvatarUrl(user);

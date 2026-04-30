@@ -11,9 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { supabase } from '../../lib/supabase';
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  SUPABASE_CONFIG_ERROR,
+} from '../../lib/supabase';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { EmptyState } from '../../components/EmptyState';
 import { Colors, FontSize, Radius, Spacing } from '../../theme/colors';
 
 type AuthView = 'signin' | 'signup';
@@ -118,6 +123,22 @@ export function AuthScreen() {
     setPassword('');
     setConfirmPassword('');
   }
+
+  if (!isSupabaseConfigured) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={[styles.formCard, styles.configCard]}>
+          <EmptyState
+            icon="settings-outline"
+            title="App configuration required"
+            message={SUPABASE_CONFIG_ERROR ?? 'Supabase is not configured.'}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const supabase = getSupabaseClient();
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -326,6 +347,12 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     gap: 20,
     marginTop: -12,
+  },
+  configCard: {
+    flex: 1,
+    marginTop: 0,
+    borderRadius: 0,
+    justifyContent: 'center',
   },
   tabRow: {
     flexDirection: 'row',
