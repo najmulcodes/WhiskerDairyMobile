@@ -1,10 +1,3 @@
-/**
- * Expo SDK 51 targets Gradle 8.6.
- * Gradle 8.8+ breaks expo-module-gradle-plugin resolution via includeBuild.
- * This script runs automatically after `expo prebuild` (via "postprebuild" hook)
- * and pins the Gradle wrapper to the version SDK 51 is compatible with.
- */
-
 const fs = require('fs');
 const path = require('path');
 
