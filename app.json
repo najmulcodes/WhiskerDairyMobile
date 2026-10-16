@@ -55,7 +55,8 @@
           "cameraPermission": "Allow Whisker Dairy to use the camera to take pet photos.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-font"
     ],
     "scheme": "whiskerdairy",
     "extra": {
