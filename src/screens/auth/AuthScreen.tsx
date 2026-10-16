@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { isAuthRetryableFetchError, type AuthError } from '@supabase/supabase-js';
 import {
   getSupabaseClient,
   isSupabaseConfigured,
@@ -21,7 +23,35 @@ import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
 import { Colors, FontSize, Radius, Spacing } from '../../theme/colors';
 
-type AuthView = 'signin' | 'signup';
+type AuthView = 'signin' | 'signup' | 'verify';
+
+/** Must match the email OTP length configured in Supabase Auth. */
+const OTP_LENGTH = 6;
+const RESEND_COOLDOWN_SECONDS = 60;
+
+const NETWORK_ERROR_MESSAGE = 'Network error. Check your connection and try again.';
+const RATE_LIMIT_MESSAGE = 'Too many requests. Please wait a minute and try again.';
+
+function isNetworkError(error: unknown): boolean {
+  return (
+    isAuthRetryableFetchError(error) ||
+    (error instanceof Error && /network request failed|failed to fetch/i.test(error.message))
+  );
+}
+
+function isRateLimited(error: AuthError): boolean {
+  return (
+    error.status === 429 ||
+    error.code === 'over_email_send_rate_limit' ||
+    error.code === 'over_request_rate_limit'
+  );
+}
+
+function describeAuthError(error: AuthError): string {
+  if (isNetworkError(error)) return NETWORK_ERROR_MESSAGE;
+  if (isRateLimited(error)) return RATE_LIMIT_MESSAGE;
+  return error.message;
+}
 
 const highlights = [
   '🐾  Track pet care, vaccinations & daily details',
@@ -37,6 +67,28 @@ export function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [code, setCode] = useState('');
+  const [cooldown, setCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
+  const [originView, setOriginView] = useState<'signin' | 'signup'>('signup');
+
+  // Resend cooldown ticker
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  // Android hardware back on the verify step returns to the form
+  useEffect(() => {
+    if (view !== 'verify') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleChangeEmail();
+      return true;
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, originView]);
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
@@ -67,7 +119,7 @@ export function AuthScreen() {
 
     try {
       if (view === 'signup') {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
@@ -76,15 +128,24 @@ export function AuthScreen() {
         });
 
         if (error) {
-          Alert.alert('Sign up failed', error.message);
+          if (error.code === 'user_already_exists' || error.code === 'email_exists') {
+            showAlreadyRegistered();
+          } else {
+            Alert.alert('Sign up failed', describeAuthError(error));
+          }
           return;
         }
 
-        Alert.alert(
-          'Check your email',
-          'We sent a verification link to your email. Please verify before signing in.',
-          [{ text: 'OK', onPress: () => setView('signin') }]
-        );
+        // Email confirmation off: a session exists and auth state takes over.
+        if (data.session) return;
+
+        // Supabase hides existing accounts: a repeat signup returns a user with no identities.
+        if (data.user && data.user.identities?.length === 0) {
+          showAlreadyRegistered();
+          return;
+        }
+
+        startVerify('signup', RESEND_COOLDOWN_SECONDS);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -92,11 +153,110 @@ export function AuthScreen() {
         });
 
         if (error) {
-          Alert.alert('Sign in failed', error.message);
+          if (error.code === 'email_not_confirmed' || /email not confirmed/i.test(error.message)) {
+            const { error: resendError } = await supabase.auth.resend({
+              type: 'signup',
+              email: email.trim(),
+            });
+            startVerify('signin', resendError && !isRateLimited(resendError) ? 0 : RESEND_COOLDOWN_SECONDS);
+            if (resendError) {
+              Alert.alert(
+                'Code not sent',
+                isRateLimited(resendError)
+                  ? 'A code was sent recently. Check your inbox, or wait before requesting another.'
+                  : describeAuthError(resendError)
+              );
+            }
+          } else {
+            Alert.alert('Sign in failed', describeAuthError(error));
+          }
         }
       }
+    } catch {
+      Alert.alert('Something went wrong', NETWORK_ERROR_MESSAGE);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function showAlreadyRegistered() {
+    Alert.alert(
+      'Account already exists',
+      'An account with this email already exists. Please sign in instead.',
+      [{ text: 'OK', onPress: () => switchView('signin') }]
+    );
+  }
+
+  function startVerify(origin: 'signin' | 'signup', cooldownSeconds: number) {
+    setOriginView(origin);
+    setCode('');
+    setErrors({});
+    setCooldown(cooldownSeconds);
+    setView('verify');
+  }
+
+  function handleChangeEmail() {
+    setCode('');
+    setErrors({});
+    setCooldown(0);
+    setView(originView);
+  }
+
+  async function handleVerify() {
+    if (code.length !== OTP_LENGTH) {
+      setErrors({ code: `Enter the ${OTP_LENGTH}-digit code` });
+      return;
+    }
+    setLoading(true);
+    setErrors({});
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: code,
+        type: 'signup',
+      });
+
+      if (error) {
+        // Supabase returns the same error for a wrong and an expired code.
+        const message =
+          isNetworkError(error) || isRateLimited(error)
+            ? describeAuthError(error)
+            : 'That code is incorrect or has expired. Check the code or request a new one.';
+        setErrors({ code: message });
+      }
+      // On success AuthContext receives the session and navigation switches automatically.
+    } catch {
+      setErrors({ code: NETWORK_ERROR_MESSAGE });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    if (cooldown > 0 || resending) return;
+    setResending(true);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+      });
+
+      if (error) {
+        if (isRateLimited(error)) setCooldown(RESEND_COOLDOWN_SECONDS);
+        Alert.alert('Could not resend code', describeAuthError(error));
+        return;
+      }
+
+      setCode('');
+      setErrors({});
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      Alert.alert('Code sent', 'We sent a new code to your email.');
+    } catch {
+      Alert.alert('Could not resend code', NETWORK_ERROR_MESSAGE);
+    } finally {
+      setResending(false);
     }
   }
 
@@ -117,7 +277,7 @@ export function AuthScreen() {
     }
   }
 
-  function switchView(nextView: AuthView) {
+  function switchView(nextView: 'signin' | 'signup') {
     setView(nextView);
     setErrors({});
     setPassword('');
@@ -161,7 +321,11 @@ export function AuthScreen() {
           >
             <Text style={styles.appName}>🐱 Whisker Dairy</Text>
             <Text style={styles.headerTitle}>
-              {view === 'signin' ? 'Welcome back!' : 'Create your account'}
+              {view === 'signin'
+                ? 'Welcome back!'
+                : view === 'signup'
+                ? 'Create your account'
+                : 'Verify your email'}
             </Text>
             <Text style={styles.headerSub}>
               Your pet care workspace, organized.
@@ -177,6 +341,57 @@ export function AuthScreen() {
           </LinearGradient>
 
           {/* Form card */}
+          {view === 'verify' ? (
+            <View style={styles.formCard}>
+              <Text style={styles.verifyText}>
+                {`We sent a ${OTP_LENGTH}-digit code to ${email.trim()}. Enter it below to verify your email.`}
+              </Text>
+
+              <Input
+                label="Verification code"
+                placeholder={'0'.repeat(OTP_LENGTH)}
+                value={code}
+                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+                error={errors.code}
+                keyboardType="number-pad"
+                maxLength={OTP_LENGTH}
+                autoComplete="one-time-code"
+                textContentType="oneTimeCode"
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleVerify}
+                style={styles.codeInput}
+              />
+
+              <Button
+                onPress={handleVerify}
+                loading={loading}
+                size="lg"
+                style={styles.submitBtn}
+              >
+                Verify
+              </Button>
+
+              <TouchableOpacity
+                onPress={handleResend}
+                disabled={cooldown > 0 || resending}
+                style={styles.verifyLinkRow}
+              >
+                <Text
+                  style={[
+                    styles.verifyLink,
+                    (cooldown > 0 || resending) && styles.verifyLinkDisabled,
+                  ]}
+                >
+                  {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={handleChangeEmail} style={styles.verifyLinkRow}>
+                <Text style={styles.verifyLink}>Use a different email</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
           <View style={styles.formCard}>
             {/* View toggle */}
             <View style={styles.tabRow}>
@@ -281,6 +496,7 @@ export function AuthScreen() {
               {view === 'signin' ? 'Sign in' : 'Create account'}
             </Button>
           </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -396,5 +612,28 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: 4,
+  },
+  verifyText: {
+    fontSize: FontSize.base,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+  },
+  codeInput: {
+    textAlign: 'center',
+    letterSpacing: 8,
+    fontSize: FontSize.xl,
+    fontWeight: '700',
+  },
+  verifyLinkRow: {
+    alignSelf: 'center',
+    paddingVertical: 4,
+  },
+  verifyLink: {
+    fontSize: FontSize.sm,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+  verifyLinkDisabled: {
+    color: Colors.textMuted,
   },
 });
