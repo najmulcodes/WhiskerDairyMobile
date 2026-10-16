@@ -15,27 +15,32 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.whiskerdairy.app",
       "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "Used to take pet photos",
-        "NSPhotoLibraryUsageDescription": "Used to pick pet photos from your library",
-        "NSUserNotificationsUsageDescription": "Used to send reminders for pet care"
+        "NSPhotoLibraryUsageDescription": "Used to pick pet photos from your library"
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#fff8f4"
+        "backgroundColor": "#fde3d1"
       },
       "package": "com.whiskerdairy.app",
       "versionCode": 1,
       "permissions": [
         "android.permission.CAMERA",
+        "android.permission.VIBRATE"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
@@ -47,17 +52,10 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow Whisker Dairy to access your photos to set pet images.",
-          "cameraPermission": "Allow Whisker Dairy to use the camera to take pet photos."
+          "cameraPermission": "Allow Whisker Dairy to use the camera to take pet photos.",
+          "microphonePermission": false
         }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#ff7a5c"
-        }
-      ],
-      "./plugins/withAndroidBuildFixes"
+      ]
     ],
     "scheme": "whiskerdairy",
     "extra": {

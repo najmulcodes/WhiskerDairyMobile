@@ -36,7 +36,11 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 EXPO_PUBLIC_API_URL=https://whisker-dairy.onrender.com/api/v1
 EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
 EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your-upload-preset
+EXPO_PUBLIC_PRIVACY_POLICY_URL=https://your-host/privacy.html
 ```
+
+> The app shows a configuration error screen at startup if any of these are missing.
+> For EAS cloud builds, set the same names as EAS environment variables (`preview` and `production`) — `.env` is not uploaded to EAS.
 
 > **Where to find these:**
 > - Supabase: Dashboard → Settings → API
@@ -80,7 +84,6 @@ WhiskerDairyMobile/
 │   ├── icon.png                   ← 1024x1024 app icon
 │   ├── splash.png                 ← 1284x2778 splash screen
 │   ├── adaptive-icon.png          ← 1024x1024 Android adaptive icon
-│   └── notification-icon.png      ← 96x96 notification icon
 └── src/
     ├── theme/
     │   └── colors.ts              ← Design tokens
@@ -265,9 +268,8 @@ npx expo run:ios
 | File | Size | Purpose |
 |------|------|---------|
 | `icon.png` | 1024×1024 px | App icon (iOS + Android) |
-| `adaptive-icon.png` | 1024×1024 px | Android adaptive icon foreground |
+| `adaptive-icon.png` | 1024×1024 px | Android adaptive icon foreground (artwork inside the central 66% safe zone) |
 | `splash.png` | 1284×2778 px | Splash screen |
-| `notification-icon.png` | 96×96 px | Android notification icon |
 | `favicon.png` | 32×32 px | Web favicon |
 
 > You can create placeholder icons with any design tool. Use the primary color `#ff7a5c` as the background.
@@ -275,8 +277,10 @@ npx expo run:ios
 ### Permissions configured
 - **Camera** — for pet photo capture
 - **Photo Library** — for pet photo selection
-- **Push Notifications** — for reminders
 - **Internet** — for API calls
+- **Vibrate**
+
+Blocked (cannot be re-added by libraries): `RECORD_AUDIO`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`, `RECEIVE_BOOT_COMPLETED`, `POST_NOTIFICATIONS`. See `android.blockedPermissions` in `app.json`.
 
 ---
 
@@ -287,7 +291,7 @@ npx expo run:ios
 # First: create keystore via EAS
 eas credentials
 
-# Then submit
+# Then submit (track: internal, see eas.json)
 eas submit --platform android --profile production
 ```
 

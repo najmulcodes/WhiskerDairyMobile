@@ -1,7 +1,7 @@
-const CLOUD_NAME =
-  process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-const UPLOAD_PRESET =
-  process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || '';
+import {
+  CLOUDINARY_CLOUD_NAME as CLOUD_NAME,
+  CLOUDINARY_UPLOAD_PRESET as UPLOAD_PRESET,
+} from './config';
 
 export interface CloudinaryUploadResult {
   secure_url: string;
@@ -13,7 +13,7 @@ export async function uploadImageToCloudinary(
 ): Promise<string> {
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     throw new Error(
-      'Cloudinary is not configured. Set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME and EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET in your .env file.'
+      'Cloudinary is not configured. Set EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME and EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET in EAS environment variables (or your local .env).'
     );
   }
 

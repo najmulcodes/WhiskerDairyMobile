@@ -8,10 +8,11 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Switch,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
   useAuth,
@@ -23,6 +24,8 @@ import {
   isSupabaseConfigured,
   SUPABASE_CONFIG_ERROR,
 } from '../../lib/supabase';
+import api from '../../lib/api';
+import { PRIVACY_POLICY_URL } from '../../lib/config';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
@@ -110,7 +113,12 @@ export function SettingsScreen() {
     );
   }
 
+  return <SettingsContent />;
+}
+
+function SettingsContent() {
   const supabase = getSupabaseClient();
+  const queryClient = useQueryClient();
   const { user, signOut } = useAuth();
   const displayName = getUserDisplayName(user);
   const avatarUrl = getUserAvatarUrl(user);
@@ -118,7 +126,7 @@ export function SettingsScreen() {
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(displayName);
   const [savingName, setSavingName] = useState(false);
-  const [notifications, setNotifications] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   async function handleSaveName() {
     if (!newName.trim()) {
@@ -165,23 +173,53 @@ export function SettingsScreen() {
     ]);
   }
 
+  async function performAccountDeletion() {
+    setDeleting(true);
+    try {
+      await api.delete('/auth/account');
+    } catch (err) {
+      setDeleting(false);
+      Alert.alert(
+        'Could not delete account',
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.'
+      );
+      return;
+    }
+
+    // The server has deleted the account. Clear local state regardless of
+    // whether the (now-invalid) session can still be revoked remotely.
+    try {
+      await signOut();
+    } catch {
+      // Session is already invalid server-side; ignore.
+    } finally {
+      queryClient.clear();
+      setDeleting(false);
+    }
+  }
+
   function handleDeleteAccount() {
+    if (deleting) return;
     Alert.alert(
       'Delete account',
-      'This will permanently delete your account and all data including pets, expenses, and records. This cannot be undone.',
+      'This will permanently delete your account and all data including pets, medications, vaccinations, expenses, and photos. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete permanently',
           style: 'destructive',
-          onPress: () =>
-            Alert.alert(
-              'Contact support',
-              'To delete your account, please contact support@whiskerdairy.com'
-            ),
+          onPress: () => {
+            void performAccountDeletion();
+          },
         },
       ]
     );
+  }
+
+  function handleOpenPrivacyPolicy() {
+    Linking.openURL(PRIVACY_POLICY_URL).catch(() => {
+      Alert.alert('Could not open link', 'Please try again later.');
+    });
   }
 
   return (
@@ -289,18 +327,6 @@ export function SettingsScreen() {
         {/* Preferences */}
         <Section title="Preferences">
           <Row
-            icon="notifications-outline"
-            label="Push notifications"
-            rightElement={
-              <Switch
-                value={notifications}
-                onValueChange={setNotifications}
-                trackColor={{ false: Colors.gray200, true: Colors.primary }}
-                thumbColor={Colors.white}
-              />
-            }
-          />
-          <Row
             icon="globe-outline"
             label="Currency"
             value="BDT (Bangladeshi Taka)"
@@ -318,9 +344,7 @@ export function SettingsScreen() {
           <Row
             icon="document-text-outline"
             label="Privacy policy"
-            onPress={() =>
-              Alert.alert('Privacy Policy', 'Visit our website for the full privacy policy.')
-            }
+            onPress={handleOpenPrivacyPolicy}
           />
           <Row
             icon="help-circle-outline"
@@ -342,7 +366,7 @@ export function SettingsScreen() {
           />
           <Row
             icon="trash-outline"
-            label="Delete account"
+            label={deleting ? 'Deleting account…' : 'Delete account'}
             onPress={handleDeleteAccount}
             destructive
             isLast

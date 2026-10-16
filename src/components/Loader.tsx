@@ -6,6 +6,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Colors, FontSize } from '../theme/colors';
+import { useServerWaking, WAKING_MESSAGE } from '../lib/api';
 
 interface LoaderProps {
   fullScreen?: boolean;
@@ -20,11 +21,14 @@ export function Loader({
   size = 'large',
   color = Colors.primary,
 }: LoaderProps) {
+  const waking = useServerWaking();
+  const shownMessage = waking ? WAKING_MESSAGE : message;
+
   if (fullScreen) {
     return (
       <View style={styles.fullScreen}>
         <ActivityIndicator size={size} color={color} />
-        {message && <Text style={styles.message}>{message}</Text>}
+        {shownMessage && <Text style={styles.message}>{shownMessage}</Text>}
       </View>
     );
   }
@@ -32,7 +36,7 @@ export function Loader({
   return (
     <View style={styles.inline}>
       <ActivityIndicator size={size} color={color} />
-      {message && <Text style={styles.message}>{message}</Text>}
+      {shownMessage && <Text style={styles.message}>{shownMessage}</Text>}
     </View>
   );
 }
