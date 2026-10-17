@@ -37,7 +37,9 @@ function StatCard({
   return (
     <Card style={styles.statCard}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        {value}
+      </Text>
       <Text style={styles.statSub}>{sub}</Text>
     </Card>
   );

@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
   itemList: { gap: 10 },
   itemCard: { backgroundColor: Colors.background, borderRadius: Radius.xl, padding: 14, gap: 8 },
   itemTop: { flexDirection: 'row', gap: 8 },
-  itemName: { fontSize: FontSize.base, fontWeight: '700', color: Colors.textPrimary },
+  itemName: { fontSize: FontSize.base, fontWeight: '700', color: Colors.textPrimary, flexShrink: 1 },
   itemMeta: { fontSize: FontSize.sm, color: Colors.textSecondary },
   itemActions: { flexDirection: 'row', gap: 8 },
   itemBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.white, borderWidth: 1, borderColor: Colors.border },

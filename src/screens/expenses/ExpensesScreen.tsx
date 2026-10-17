@@ -167,7 +167,9 @@ export function ExpensesScreen() {
             <View style={styles.summaryRow}>
               <Card style={styles.summaryCard}>
                 <Text style={styles.summaryLabel}>Total spending</Text>
-                <Text style={styles.summaryValue}>{formatBDT(total)}</Text>
+                <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                  {formatBDT(total)}
+                </Text>
                 <Text style={styles.summaryHint}>{formatMonthLabel(month)}</Text>
               </Card>
               <Card style={styles.summaryCard}>

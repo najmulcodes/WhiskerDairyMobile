@@ -6,11 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#fff8f4"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.whiskerdairy.app",
@@ -56,14 +51,28 @@
           "microphonePermission": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#fddbd0",
+          "image": "./assets/splash-full.png",
+          "resizeMode": "cover",
+          "android": {
+            "backgroundColor": "#fddbd0",
+            "image": "./assets/adaptive-icon.png",
+            "imageWidth": 200,
+            "resizeMode": "contain"
+          }
+        }
+      ]
     ],
     "scheme": "whiskerdairy",
     "extra": {
       "eas": {
-        "projectId": "74b6c349-569a-46ab-8111-41037b82f3e4"
+        "projectId": "372acdec-7862-4c47-bacd-3ecf69c7f276"
       }
     },
-    "owner": "najmulcodes"
+    "owner": "shariarx6t9"
   }
 }
