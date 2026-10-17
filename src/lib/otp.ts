@@ -7,4 +7,4 @@
  * client-side check, so they must equal the value set in Supabase.
  */
 export const SIGNUP_OTP_LENGTH = 6;
-export const RESET_OTP_LENGTH = 8;
+export const RESET_OTP_LENGTH = 6;
