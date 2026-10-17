@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   ReactNode,
 } from 'react';
@@ -15,6 +16,10 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  /** Call before verifying a recovery OTP so the temp session does not open the app. */
+  beginRecovery: () => void;
+  /** Call after the password flow finishes; syncs state with the current session. */
+  endRecovery: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -23,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const recoveryRef = useRef(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -60,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, s) => {
         if (!mounted) return;
+        // During password recovery the OTP creates a session; keep the user on the auth screen.
+        if (recoveryRef.current) return;
         setSession(s);
         setUser(s?.user ?? null);
         setAccessToken(s?.access_token ?? null);
@@ -86,8 +94,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null);
   }, []);
 
+  const beginRecovery = useCallback(() => {
+    recoveryRef.current = true;
+  }, []);
+
+  const endRecovery = useCallback(async () => {
+    recoveryRef.current = false;
+    if (!isSupabaseConfigured) return;
+    const { data } = await getSupabaseClient().auth.getSession();
+    const s = data.session ?? null;
+    setSession(s);
+    setUser(s?.user ?? null);
+    setAccessToken(s?.access_token ?? null);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider
+      value={{ user, session, loading, signOut, beginRecovery, endRecovery }}
+    >
       {children}
     </AuthContext.Provider>
   );

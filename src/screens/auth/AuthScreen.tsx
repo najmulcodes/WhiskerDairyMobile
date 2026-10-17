@@ -22,11 +22,10 @@ import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/EmptyState';
 import { Colors, FontSize, Radius, Spacing } from '../../theme/colors';
+import { useAuth } from '../../context/AuthContext';
+import { RESET_OTP_LENGTH, SIGNUP_OTP_LENGTH } from '../../lib/otp';
 
-type AuthView = 'signin' | 'signup' | 'verify';
-
-/** Must match the email OTP length configured in Supabase Auth. */
-const OTP_LENGTH = 6;
+type AuthView = 'signin' | 'signup' | 'verify' | 'reset';
 const RESEND_COOLDOWN_SECONDS = 60;
 
 const NETWORK_ERROR_MESSAGE = 'Network error. Check your connection and try again.';
@@ -60,6 +59,7 @@ const highlights = [
 ];
 
 export function AuthScreen() {
+  const { beginRecovery, endRecovery } = useAuth();
   const [view, setView] = useState<AuthView>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -81,9 +81,10 @@ export function AuthScreen() {
 
   // Android hardware back on the verify step returns to the form
   useEffect(() => {
-    if (view !== 'verify') return;
+    if (view !== 'verify' && view !== 'reset') return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      handleChangeEmail();
+      if (view === 'reset') leaveReset();
+      else handleChangeEmail();
       return true;
     });
     return () => sub.remove();
@@ -203,8 +204,8 @@ export function AuthScreen() {
   }
 
   async function handleVerify() {
-    if (code.length !== OTP_LENGTH) {
-      setErrors({ code: `Enter the ${OTP_LENGTH}-digit code` });
+    if (code.length !== SIGNUP_OTP_LENGTH) {
+      setErrors({ code: `Enter the ${SIGNUP_OTP_LENGTH}-digit code` });
       return;
     }
     setLoading(true);
@@ -238,10 +239,10 @@ export function AuthScreen() {
     setResending(true);
 
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email.trim(),
-      });
+      const { error } =
+        view === 'reset'
+          ? await supabase.auth.resetPasswordForEmail(email.trim())
+          : await supabase.auth.resend({ type: 'signup', email: email.trim() });
 
       if (error) {
         if (isRateLimited(error)) setCooldown(RESEND_COOLDOWN_SECONDS);
@@ -261,19 +262,99 @@ export function AuthScreen() {
   }
 
   async function handleForgotPassword() {
-    if (!email.trim()) {
-      Alert.alert('Enter email', 'Please enter your email address first.');
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErrors({ email: 'Enter a valid email address' });
       return;
     }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-    if (error) {
-      Alert.alert('Error', error.message);
-    } else {
-      Alert.alert(
-        'Reset link sent',
-        'Check your email for a password reset link.'
-      );
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (error) {
+        Alert.alert('Could not send code', describeAuthError(error));
+        return;
+      }
+      setCode('');
+      setPassword('');
+      setConfirmPassword('');
+      setErrors({});
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+      setView('reset');
+    } catch {
+      Alert.alert('Could not send code', NETWORK_ERROR_MESSAGE);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function leaveReset() {
+    setCode('');
+    setPassword('');
+    setConfirmPassword('');
+    setErrors({});
+    setCooldown(0);
+    setView('signin');
+  }
+
+  async function handleResetPassword() {
+    const newErrors: Record<string, string> = {};
+    if (code.length !== RESET_OTP_LENGTH) {
+      newErrors.code = `Enter the ${RESET_OTP_LENGTH}-digit code`;
+    }
+    if (!password || password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    if (password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    setLoading(true);
+    // verifyOtp opens a session; keep the app gated until the new password is saved.
+    beginRecovery();
+    let verified = false;
+
+    try {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: code,
+        type: 'recovery',
+      });
+
+      if (verifyError) {
+        setErrors({
+          code:
+            isNetworkError(verifyError) || isRateLimited(verifyError)
+              ? describeAuthError(verifyError)
+              : 'That code is incorrect or has expired. Check the code or request a new one.',
+        });
+        return;
+      }
+      verified = true;
+
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) {
+        await supabase.auth.signOut();
+        verified = false;
+        setErrors({
+          password:
+            updateError.code === 'same_password'
+              ? 'New password must be different from your old password.'
+              : describeAuthError(updateError),
+        });
+        return;
+      }
+
+      Alert.alert('Password updated', 'You are now signed in with your new password.');
+    } catch {
+      if (verified) await supabase.auth.signOut().catch(() => undefined);
+      setErrors({ code: NETWORK_ERROR_MESSAGE });
+      verified = false;
+    } finally {
+      // Releases the gate; on success the session opens the app, otherwise the user stays here.
+      await endRecovery();
+      setLoading(false);
     }
   }
 
@@ -325,6 +406,8 @@ export function AuthScreen() {
                 ? 'Welcome back!'
                 : view === 'signup'
                 ? 'Create your account'
+                : view === 'reset'
+                ? 'Reset your password'
                 : 'Verify your email'}
             </Text>
             <Text style={styles.headerSub}>
@@ -341,20 +424,94 @@ export function AuthScreen() {
           </LinearGradient>
 
           {/* Form card */}
-          {view === 'verify' ? (
+          {view === 'reset' ? (
             <View style={styles.formCard}>
               <Text style={styles.verifyText}>
-                {`We sent a ${OTP_LENGTH}-digit code to ${email.trim()}. Enter it below to verify your email.`}
+                {`We sent a ${RESET_OTP_LENGTH}-digit code to ${email.trim()}. Enter it below and choose a new password.`}
+              </Text>
+
+              <Input
+                label="Reset code"
+                placeholder={'0'.repeat(RESET_OTP_LENGTH)}
+                value={code}
+                onChangeText={(t) =>
+                  setCode(t.replace(/\D/g, '').slice(0, RESET_OTP_LENGTH))
+                }
+                error={errors.code}
+                keyboardType="number-pad"
+                maxLength={RESET_OTP_LENGTH}
+                autoComplete="one-time-code"
+                textContentType="oneTimeCode"
+                autoFocus
+                returnKeyType="next"
+                style={styles.codeInput}
+              />
+
+              <Input
+                label="New password"
+                placeholder="••••••••"
+                value={password}
+                onChangeText={setPassword}
+                error={errors.password}
+                isPassword
+                autoComplete="new-password"
+                returnKeyType="next"
+              />
+
+              <Input
+                label="Confirm new password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                error={errors.confirmPassword}
+                isPassword
+                autoComplete="new-password"
+                returnKeyType="done"
+                onSubmitEditing={handleResetPassword}
+              />
+
+              <Button
+                onPress={handleResetPassword}
+                loading={loading}
+                size="lg"
+                style={styles.submitBtn}
+              >
+                Reset password
+              </Button>
+
+              <TouchableOpacity
+                onPress={handleResend}
+                disabled={cooldown > 0 || resending}
+                style={styles.verifyLinkRow}
+              >
+                <Text
+                  style={[
+                    styles.verifyLink,
+                    (cooldown > 0 || resending) && styles.verifyLinkDisabled,
+                  ]}
+                >
+                  {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={leaveReset} style={styles.verifyLinkRow}>
+                <Text style={styles.verifyLink}>Back to sign in</Text>
+              </TouchableOpacity>
+            </View>
+          ) : view === 'verify' ? (
+            <View style={styles.formCard}>
+              <Text style={styles.verifyText}>
+                {`We sent a ${SIGNUP_OTP_LENGTH}-digit code to ${email.trim()}. Enter it below to verify your email.`}
               </Text>
 
               <Input
                 label="Verification code"
-                placeholder={'0'.repeat(OTP_LENGTH)}
+                placeholder={'0'.repeat(SIGNUP_OTP_LENGTH)}
                 value={code}
-                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+                onChangeText={(t) => setCode(t.replace(/\D/g, '').slice(0, SIGNUP_OTP_LENGTH))}
                 error={errors.code}
                 keyboardType="number-pad"
-                maxLength={OTP_LENGTH}
+                maxLength={SIGNUP_OTP_LENGTH}
                 autoComplete="one-time-code"
                 textContentType="oneTimeCode"
                 autoFocus
